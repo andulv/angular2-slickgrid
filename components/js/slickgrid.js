@@ -18,7 +18,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@angular/core");
 const Rx_1 = require("rxjs/Rx");
-const interfaces_1 = require("./interfaces");
 const gridsync_service_1 = require("./gridsync.service");
 ////////// Text Editors ///////////////////////////////////////////////////////
 function getOverridableTextEditorClass(grid) {
@@ -59,12 +58,14 @@ function getOverridableTextEditorClass(grid) {
         }
         ;
         applyValue(item, state) {
-            let currentRow = grid.dataRows.at(this._rowIndex);
-            let colIndex = grid.getColumnIndex(this._args.column.name);
-            let dataLength = grid.dataRows.getLength();
+            let currentRow = grid.dataModel.getItem(this._rowIndex);
+            let dataField = this._args.column.field;
+            // let colIndex = grid.getColumnIndex();
+            let dataLength = grid.dataModel.getLength();
+            // let colDef=grid.columnDefinitions[]
             // If this is not the "new row" at the very bottom
             if (this._rowIndex !== dataLength) {
-                currentRow.values[colIndex] = state;
+                currentRow[dataField] = state;
                 this._textEditor.applyValue(item, state);
             }
         }
@@ -88,7 +89,7 @@ function getOverridableTextEditorClass(grid) {
     return OverridableTextEditor;
 }
 ////////// Implementation /////////////////////////////////////////////////////
-let SlickGrid = SlickGrid_1 = class SlickGrid {
+let SlickGrid = class SlickGrid {
     /* andresse: commented out 11/1/2016 due to minification issues
     private _finishGridEditingFn: (e: any, args: any) => void;
     */
@@ -138,7 +139,7 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
             return (row, cell, value, columnDef, dataContext) => {
                 let columnId = cell > 0 && this.columnDefinitions.length > cell - 1 ? this.columnDefinitions[cell - 1].id : undefined;
                 if (columnId) {
-                    let columnType = this.columnDefinitions[cell - 1].type;
+                    // let columnType = this.columnDefinitions[cell - 1].type;
                     let isHighlighted = this.highlightedCells && !!this.highlightedCells.find(c => c.row === row && c.column + 1 === cell);
                     let isColumnLoading = this.columnsLoading && this.columnsLoading.indexOf(columnId) !== -1;
                     let isShadowed = this.blurredColumns && !!this.blurredColumns.find(c => c === columnId);
@@ -146,9 +147,9 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
                     let overrideValue = this.overrideCellFn && this.overrideCellFn(row, columnId, value, dataContext);
                     let valueToDisplay = (value + '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     let cellClasses = 'grid-cell-value-container';
-                    if (columnType !== interfaces_1.FieldType.String) {
-                        cellClasses += ' right-justified';
-                    }
+                    // if (columnType !== FieldType.String) {
+                    //     cellClasses += ' right-justified';
+                    // }
                     /* tslint:disable:no-null-keyword */
                     let valueMissing = value === undefined || value === null;
                     /* tslint:disable:no-null-keyword */
@@ -176,20 +177,6 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
                     return '<span title="' + valueToDisplay + '" class="' + cellClasses + '">' + valueToDisplay + '</span>';
                 }
             };
-        };
-        this._gridData = {
-            getLength: () => {
-                return this.dataRows && this._gridColumns ? this.dataRows.getLength() : 0;
-            },
-            getItem: (index) => {
-                return SlickGrid_1.getDataWithSchema(this.dataRows.at(index), this._gridColumns);
-            },
-            getRange: (start, end) => {
-                return !this.dataRows ? undefined : this.dataRows.getRange(start, end).map(d => {
-                    return SlickGrid_1.getDataWithSchema(d, this._gridColumns);
-                });
-            },
-            getItemMetadata: undefined
         };
     }
     onFocus() {
@@ -391,7 +378,7 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
                 getFormatter: this.getFormatter
             }
         };
-        this._grid = new Slick.Grid(this._el.nativeElement.getElementsByClassName('grid')[0], this._gridData, this._gridColumns, options);
+        this._grid = new Slick.Grid(this._el.nativeElement.getElementsByClassName('grid')[0], this.dataModel, this._gridColumns, options);
         if (this._gridSyncService) {
             if (this.selectionModel) {
                 if (Slick[this.selectionModel] && typeof Slick[this.selectionModel] === 'function') {
@@ -447,13 +434,6 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
                 row: rowNumber
             });
         }
-    }
-    static getDataWithSchema(data, columns) {
-        let dataWithSchema = {};
-        for (let i = 0; i < columns.length; i++) {
-            dataWithSchema[columns[i].field] = data.values[i];
-        }
-        return dataWithSchema;
     }
     onResize() {
         if (this._grid !== undefined) {
@@ -530,54 +510,41 @@ let SlickGrid = SlickGrid_1 = class SlickGrid {
         if (!this.columnDefinitions) {
             return;
         }
-        this._gridColumns = this.columnDefinitions.map((c, i) => {
-            let column = {
-                name: c.name,
-                field: c.id,
-                id: c.id ? c.id : c.name,
-                icon: this.getImagePathForDataType(c.type),
-                resizable: true
-            };
-            if (c.asyncPostRender) {
-                column.asyncPostRender = c.asyncPostRender;
-            }
-            if (c.formatter) {
-                column.formatter = c.formatter;
-            }
-            if (this._gridSyncService) {
-                let columnWidth = this._gridSyncService.columnWidthPXs[i];
-                column.width = columnWidth ? columnWidth : undefined;
-                column.minWidth = this._gridSyncService.columnMinWidthPX;
-            }
-            return column;
-        });
-    }
-    getImagePathForDataType(type) {
-        const resourcePath = './resources/';
-        switch (type) {
-            case interfaces_1.FieldType.String:
-                return resourcePath + 'col-type-string.svg';
-            case interfaces_1.FieldType.Boolean:
-                return resourcePath + 'col-type-boolean.svg';
-            case interfaces_1.FieldType.Integer:
-            case interfaces_1.FieldType.Decimal:
-                return resourcePath + 'col-type-number.svg';
-            case interfaces_1.FieldType.Date:
-                return resourcePath + 'col-type-timedate.svg';
-            case interfaces_1.FieldType.Unknown:
-            default:
-                return resourcePath + 'circle.svg';
-        }
+        this._gridColumns = this.columnDefinitions;
+        // this._gridColumns = this.columnDefinitions.map((c, i) => {
+        //     let column: ISlickGridColumn = {
+        //         name: c.name,
+        //         field: c.id,
+        //         id: c.id ? c.id : c.name,
+        //         icon: this.getImagePathForDataType(c.type),
+        //         resizable: true
+        //     };
+        //     if (c.asyncPostRender) {
+        //         column.asyncPostRender = c.asyncPostRender;
+        //     }
+        //     if (c.formatter) {
+        //         column.formatter = c.formatter;
+        //     }
+        //     if (this._gridSyncService) {
+        //         let columnWidth = this._gridSyncService.columnWidthPXs[i];
+        //         column.width = columnWidth ? columnWidth : undefined;
+        //         column.minWidth = this._gridSyncService.columnMinWidthPX;
+        //     }
+        //     return column;
+        // });
     }
     setCallbackOnDataRowsChanged() {
-        if (this.dataRows) {
-            // We must wait until we get the first set of dataRows before we enable editing or slickgrid will complain
-            if (this.enableEditing) {
-                this.enterEditSession();
-            }
-            this.dataRows.setCollectionChangedCallback((change, startIndex, count) => {
-                this.renderGridDataRowsRange(startIndex, count);
-            });
+        // if (this.dataRows) {
+        //     // We must wait until we get the first set of dataRows before we enable editing or slickgrid will complain
+        //     if (this.enableEditing) {
+        //         this.enterEditSession();
+        //     }
+        //     this.dataRows.setCollectionChangedCallback((change: CollectionChange, startIndex: number, count: number) => {
+        //         this.renderGridDataRowsRange(startIndex, count);
+        //     });
+        // }
+        if (this.renderGridDataRowsRange === undefined) {
+            this.renderGridDataRowsRange(0, 0);
         }
     }
     renderGridDataRowsRange(startIndex, count) {
@@ -600,7 +567,7 @@ __decorate([
 __decorate([
     core_1.Input(),
     __metadata("design:type", Object)
-], SlickGrid.prototype, "dataRows", void 0);
+], SlickGrid.prototype, "dataModel", void 0);
 __decorate([
     core_1.Input(),
     __metadata("design:type", Rx_1.Observable)
@@ -703,7 +670,7 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], SlickGrid.prototype, "onFocus", null);
-SlickGrid = SlickGrid_1 = __decorate([
+SlickGrid = __decorate([
     core_1.Component({
         selector: 'slick-grid',
         template: '<div class="grid" (window:resize)="onResize()"></div>',
@@ -715,4 +682,3 @@ SlickGrid = SlickGrid_1 = __decorate([
     __metadata("design:paramtypes", [Object, Object])
 ], SlickGrid);
 exports.SlickGrid = SlickGrid;
-var SlickGrid_1;

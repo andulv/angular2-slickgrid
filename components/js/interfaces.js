@@ -11,10 +11,15 @@ var NotificationType;
     NotificationType[NotificationType["UpdateAvailable"] = 1] = "UpdateAvailable";
     NotificationType[NotificationType["UpdateDownloaded"] = 2] = "UpdateDownloaded";
 })(NotificationType = exports.NotificationType || (exports.NotificationType = {}));
-var CollectionChange;
-(function (CollectionChange) {
-    CollectionChange[CollectionChange["ItemsReplaced"] = 0] = "ItemsReplaced";
-})(CollectionChange = exports.CollectionChange || (exports.CollectionChange = {}));
+// export enum CollectionChange {
+//     ItemsReplaced
+// }
+// export interface IObservableCollection<T> {
+//     getLength(): number;
+//     at(index: number): T;
+//     getRange(start: number, end: number): T[];
+//     setCollectionChangedCallback(callback: (change: CollectionChange, startIndex: number, count: number) => void): void;
+// }
 class CancellationToken {
     constructor() {
         this._isCanceled = false;
@@ -32,12 +37,27 @@ class CancellationToken {
     }
 }
 exports.CancellationToken = CancellationToken;
-var FieldType;
-(function (FieldType) {
-    FieldType[FieldType["String"] = 0] = "String";
-    FieldType[FieldType["Boolean"] = 1] = "Boolean";
-    FieldType[FieldType["Integer"] = 2] = "Integer";
-    FieldType[FieldType["Decimal"] = 3] = "Decimal";
-    FieldType[FieldType["Date"] = 4] = "Date";
-    FieldType[FieldType["Unknown"] = 5] = "Unknown";
-})(FieldType = exports.FieldType || (exports.FieldType = {}));
+// export enum FieldType {
+//     String = 0,
+//     Boolean = 1,
+//     Integer = 2,
+//     Decimal = 3,
+//     Date = 4,
+//     Unknown = 5
+// }
+// export interface IColumnDefinition {
+//     id?: string;
+//     name: string;
+//     type: FieldType;
+//     asyncPostRender?: (cellRef: string, row: number, dataContext: JSON, colDef: any) => void;
+//     formatter?: (row: number, cell: any, value: any, columnDef: any, dataContext: any) => string;
+//     isEditable?: boolean;
+// }
+// export interface IGridColumnDefinition {
+//     id: string;
+//     type: number;
+// }
+// export interface IGridDataRow {
+//     row?: number;
+//     values: any[];
+// }

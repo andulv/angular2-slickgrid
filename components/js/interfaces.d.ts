@@ -10,15 +10,6 @@ export interface ISelectionRange {
     startColumn: number;
     endColumn: number;
 }
-export declare enum CollectionChange {
-    ItemsReplaced = 0,
-}
-export interface IObservableCollection<T> {
-    getLength(): number;
-    at(index: number): T;
-    getRange(start: number, end: number): T[];
-    setCollectionChangedCallback(callback: (change: CollectionChange, startIndex: number, count: number) => void): void;
-}
 export declare class CancellationToken {
     private _isCanceled;
     private _canceled;
@@ -26,27 +17,20 @@ export declare class CancellationToken {
     readonly isCanceled: boolean;
     readonly canceled: Observable<any>;
 }
-export declare enum FieldType {
-    String = 0,
-    Boolean = 1,
-    Integer = 2,
-    Decimal = 3,
-    Date = 4,
-    Unknown = 5,
+export interface ISlickGridData {
+    getLength(): number;
+    getItem(index: number): any;
+    getRange(start: number, end: number): any;
+    getItemMetadata(index: number): any;
 }
-export interface IColumnDefinition {
-    id?: string;
+export interface ISlickGridColumn {
     name: string;
-    type: FieldType;
+    field: string;
+    id: string;
+    icon: string;
+    resizable: boolean;
+    minWidth?: number;
+    width?: number;
     asyncPostRender?: (cellRef: string, row: number, dataContext: JSON, colDef: any) => void;
     formatter?: (row: number, cell: any, value: any, columnDef: any, dataContext: any) => string;
-    isEditable?: boolean;
-}
-export interface IGridColumnDefinition {
-    id: string;
-    type: number;
-}
-export interface IGridDataRow {
-    row?: number;
-    values: any[];
 }

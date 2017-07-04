@@ -6,34 +6,11 @@
 import { Component, Input, Output, Inject, forwardRef, OnChanges, OnInit, OnDestroy, ElementRef, SimpleChange, EventEmitter,
     ViewEncapsulation, Optional, HostListener, AfterViewInit } from '@angular/core';
 import { Observable, Subscription } from 'rxjs/Rx';
-import { IObservableCollection, CollectionChange, IGridDataRow, IColumnDefinition, FieldType } from './interfaces';
+import { ISlickGridColumn, ISlickGridData } from './interfaces';
 import { GridSyncService } from './gridsync.service';
 import { ISlickRange, ISlickEvent } from './selectionmodel';
 
 declare let Slick;
-
-////////// Interfaces /////////////////////////////////////////////////////////
-
-interface ISlickGridData {
-    // https://github.com/mleibman/SlickGrid/wiki/DataView
-    getLength(): number;
-    getItem(index: number): any;
-    getRange(start: number, end: number): any; // only available in the forked SlickGrid
-    getItemMetadata(index: number): any;
-}
-
-interface ISlickGridColumn {
-    // https://github.com/mleibman/SlickGrid/wiki/Column-Options
-    name: string;
-    field: string;
-    id: string;
-    icon: string;
-    resizable: boolean;
-    minWidth?: number;
-    width?: number;
-    asyncPostRender?: (cellRef: string, row: number, dataContext: JSON, colDef: any) => void;
-    formatter?: (row: number, cell: any, value: any, columnDef: any, dataContext: any) => string;
-}
 
 ////////// Text Editors ///////////////////////////////////////////////////////
 
@@ -79,13 +56,15 @@ function getOverridableTextEditorClass(grid: SlickGrid): any {
         };
 
         applyValue(item, state): void {
-            let currentRow = grid.dataRows.at(this._rowIndex);
-            let colIndex = grid.getColumnIndex(this._args.column.name);
-            let dataLength: number = grid.dataRows.getLength();
+            let currentRow = grid.dataModel.getItem(this._rowIndex);
+            let dataField = this._args.column.field;
+            // let colIndex = grid.getColumnIndex();
+            let dataLength: number = grid.dataModel.getLength();
+            // let colDef=grid.columnDefinitions[]
 
             // If this is not the "new row" at the very bottom
             if (this._rowIndex !== dataLength) {
-                currentRow.values[colIndex] = state;
+                currentRow[dataField] = state;
                 this._textEditor.applyValue(item, state);
             }
         };
@@ -121,8 +100,8 @@ function getOverridableTextEditorClass(grid: SlickGrid): any {
 })
 export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
 
-    @Input() columnDefinitions: IColumnDefinition[];
-    @Input() dataRows: IObservableCollection<IGridDataRow>;
+    @Input() columnDefinitions: ISlickGridColumn[];
+    @Input() dataModel: ISlickGridData;
     @Input() resized: Observable<any>;
     @Input() highlightedCells: {row: number, column: number}[] = [];
     @Input() blurredColumns: string[] = [];
@@ -161,7 +140,6 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
     private _grid: any;
     private _gridColumns: ISlickGridColumn[];
     private _columnNameToIndex: any;
-    private _gridData: ISlickGridData;
     private _rowHeight = 29;
     private _resizeSubscription: Subscription;
     private _gridSyncSubscription: Subscription;
@@ -174,23 +152,9 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
     */
 
     ////////// Constructor and Angular functions //////////////////////////////
-
     constructor(@Inject(forwardRef(() => ElementRef)) private _el,
                 @Optional() @Inject(forwardRef(() => GridSyncService)) private _gridSyncService) {
-        this._gridData = {
-            getLength: (): number => {
-                return this.dataRows && this._gridColumns ? this.dataRows.getLength() : 0;
-            },
-            getItem: (index): any => {
-                return SlickGrid.getDataWithSchema(this.dataRows.at(index), this._gridColumns);
-            },
-            getRange: (start, end): any => {
-                return !this.dataRows ? undefined : this.dataRows.getRange(start, end).map(d =>  {
-                    return SlickGrid.getDataWithSchema(d, this._gridColumns);
-                });
-            },
-            getItemMetadata: undefined
-        };
+
     }
 
     ngOnChanges(changes: {[propName: string]: SimpleChange}): void {
@@ -412,7 +376,7 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
 
         this._grid = new Slick.Grid(
             this._el.nativeElement.getElementsByClassName('grid')[0],
-            this._gridData,
+            this.dataModel,
             this._gridColumns,
             options);
 
@@ -478,15 +442,6 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
         }
     }
 
-    private static getDataWithSchema(data: IGridDataRow, columns: ISlickGridColumn[]): any {
-        let dataWithSchema = {};
-        for (let i = 0; i < columns.length; i++) {
-            dataWithSchema[columns[i].field] = data.values[i];
-        }
-
-        return dataWithSchema;
-    }
-
     private onResize(): void {
         if (this._grid !== undefined) {
             // this will make sure the grid header and body to be re-rendered
@@ -522,7 +477,7 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
         return (row, cell, value, columnDef, dataContext) => {
             let columnId = cell > 0 && this.columnDefinitions.length > cell - 1 ? this.columnDefinitions[cell - 1].id : undefined;
             if (columnId) {
-                let columnType = this.columnDefinitions[cell - 1].type;
+                // let columnType = this.columnDefinitions[cell - 1].type;
                 let isHighlighted = this.highlightedCells && !!this.highlightedCells.find(c => c.row === row && c.column + 1 === cell);
                 let isColumnLoading = this.columnsLoading && this.columnsLoading.indexOf(columnId) !== -1;
                 let isShadowed = this.blurredColumns && !!this.blurredColumns.find(c => c === columnId);
@@ -531,9 +486,9 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
 
                 let valueToDisplay = (value + '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 let cellClasses = 'grid-cell-value-container';
-                if (columnType !== FieldType.String) {
-                    cellClasses += ' right-justified';
-                }
+                // if (columnType !== FieldType.String) {
+                //     cellClasses += ' right-justified';
+                // }
 
                 /* tslint:disable:no-null-keyword */
                 let valueMissing = value === undefined || value === null;
@@ -646,61 +601,49 @@ export class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
             return;
         }
 
-        this._gridColumns = this.columnDefinitions.map((c, i) => {
-            let column: ISlickGridColumn = {
-                name: c.name,
-                field: c.id,
-                id: c.id ? c.id : c.name,
-                icon: this.getImagePathForDataType(c.type),
-                resizable: true
-            };
+        this._gridColumns = this.columnDefinitions;
 
-            if (c.asyncPostRender) {
-                column.asyncPostRender = c.asyncPostRender;
-            }
+        // this._gridColumns = this.columnDefinitions.map((c, i) => {
+        //     let column: ISlickGridColumn = {
+        //         name: c.name,
+        //         field: c.id,
+        //         id: c.id ? c.id : c.name,
+        //         icon: this.getImagePathForDataType(c.type),
+        //         resizable: true
+        //     };
 
-            if (c.formatter) {
-                column.formatter = c.formatter;
-            }
+        //     if (c.asyncPostRender) {
+        //         column.asyncPostRender = c.asyncPostRender;
+        //     }
 
-            if (this._gridSyncService) {
-                let columnWidth = this._gridSyncService.columnWidthPXs[i];
-                column.width = columnWidth ? columnWidth : undefined;
-                column.minWidth = this._gridSyncService.columnMinWidthPX;
-            }
+        //     if (c.formatter) {
+        //         column.formatter = c.formatter;
+        //     }
 
-            return column;
-        });
-    }
+        //     if (this._gridSyncService) {
+        //         let columnWidth = this._gridSyncService.columnWidthPXs[i];
+        //         column.width = columnWidth ? columnWidth : undefined;
+        //         column.minWidth = this._gridSyncService.columnMinWidthPX;
+        //     }
 
-    private getImagePathForDataType(type: FieldType): string {
-        const resourcePath = './resources/';
-        switch (type) {
-            case FieldType.String:
-                return resourcePath + 'col-type-string.svg';
-            case FieldType.Boolean:
-                return resourcePath + 'col-type-boolean.svg';
-            case FieldType.Integer:
-            case FieldType.Decimal:
-                return resourcePath + 'col-type-number.svg';
-            case FieldType.Date:
-                return resourcePath + 'col-type-timedate.svg';
-            case FieldType.Unknown:
-            default:
-                return resourcePath + 'circle.svg';
-        }
+        //     return column;
+        // });
     }
 
     private setCallbackOnDataRowsChanged(): void {
-        if (this.dataRows) {
-            // We must wait until we get the first set of dataRows before we enable editing or slickgrid will complain
-            if (this.enableEditing) {
-                this.enterEditSession();
-            }
+        // if (this.dataRows) {
+        //     // We must wait until we get the first set of dataRows before we enable editing or slickgrid will complain
+        //     if (this.enableEditing) {
+        //         this.enterEditSession();
+        //     }
 
-            this.dataRows.setCollectionChangedCallback((change: CollectionChange, startIndex: number, count: number) => {
-                this.renderGridDataRowsRange(startIndex, count);
-            });
+        //     this.dataRows.setCollectionChangedCallback((change: CollectionChange, startIndex: number, count: number) => {
+        //         this.renderGridDataRowsRange(startIndex, count);
+        //     });
+        // }
+
+        if (this.renderGridDataRowsRange === undefined) {
+            this.renderGridDataRowsRange(0, 0);
         }
     }
 

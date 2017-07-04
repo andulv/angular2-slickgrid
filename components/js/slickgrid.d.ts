@@ -1,12 +1,12 @@
 import { OnChanges, OnInit, OnDestroy, SimpleChange, EventEmitter, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Rx';
-import { IObservableCollection, IGridDataRow, IColumnDefinition } from './interfaces';
+import { ISlickGridColumn, ISlickGridData } from './interfaces';
 import { ISlickRange, ISlickEvent } from './selectionmodel';
 export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
     private _el;
     private _gridSyncService;
-    columnDefinitions: IColumnDefinition[];
-    dataRows: IObservableCollection<IGridDataRow>;
+    columnDefinitions: ISlickGridColumn[];
+    dataModel: ISlickGridData;
     resized: Observable<any>;
     highlightedCells: {
         row: number;
@@ -49,7 +49,6 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     private _grid;
     private _gridColumns;
     private _columnNameToIndex;
-    private _gridData;
     private _rowHeight;
     private _resizeSubscription;
     private _gridSyncSubscription;
@@ -77,7 +76,6 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     private initGrid();
     private changeEditSession(enabled);
     private handleEditorCellChange(rowNumber);
-    private static getDataWithSchema(data, columns);
     private onResize();
     private invalidateRange(start, end);
     private getColumnEditor;
@@ -88,7 +86,6 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     private subscribeToActiveCellChanged();
     private updateColumnWidths();
     private updateSchema();
-    private getImagePathForDataType(type);
     private setCallbackOnDataRowsChanged();
     private renderGridDataRowsRange(startIndex, count);
 }
