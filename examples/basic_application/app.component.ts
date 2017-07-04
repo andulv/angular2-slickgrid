@@ -7,66 +7,68 @@ import {  ISlickGridColumn, ISlickGridData } from './../../index';
     templateUrl: 'app.component.html'
 })
 export class AppComponent implements OnInit {
-    // private dataRows: IObservableCollection<IGridDataRow>;
     private columnDefinitions: ISlickGridColumn[];
 
     heroes: Hero[];
     heroesModel: ISlickGridData;
+    gridActiveRowIndex: number = 1;
+
+    grid_activeRowIndexChange(event: number): void {
+        this.gridActiveRowIndex = event;
+    }
 
     ngOnInit(): void {
         this.heroes = [
-                        new Hero(1, 'Windstorm', new Date(), ''),
-                        new Hero(13, 'Bombasto', new Date(), ''),
-                        new Hero(15, 'Magneta', new Date(), ''),
-                        new Hero(20, 'Tornado', new Date(), '')
+                        new Hero(1, 'Windstorm', new Date(), 'Superhelt'),
+                        new Hero(15, 'Magneta', new Date(), 'Superhelt'),
+                        new Hero(17, 'Lemmy', new Date(), 'Gud'),
+                        new Hero(18, 'Kaptein Sabeltann', new Date(), 'Farlig mann'),
+                        new Hero(20, 'Tornado', new Date(), 'Superhelt')
                     ];
 
-        // generate columns
-        let columns: ISlickGridColumn[] = [
+        this.columnDefinitions = [
             { id: 'colId',          field: 'id',            name: 'Id',             sortable: true },
+            { id: 'colDescription', field: 'description',   name: 'Beskrivelse',    sortable: true },
             { id: 'colName',        field: 'name',          name: 'Navn',           sortable: true },
             { id: 'colCreatedDate', field: 'createdDate',   name: 'Opprettet dato', sortable: true }
         ];
 
+        // This is the model that is invoked by the grid when it needs data
         this.heroesModel = {
             getLength: (): number => {
                 console.log('heroesModel.getLength()');
                 return this.heroes.length;
             },
+
             getItem: (index): any => {
                 console.log('heroesModel.getItem()');
                 return this.heroes[index];
             },
+
             getRange: (start, end): any => {
                 console.log('heroesModel.getRange, start: ' + start + ', end: ' + end);
                 let retValue = this.heroes.slice(start, end);
                 return retValue;
             },
-            getItemMetadata: undefined
-        };
 
-        // let loadDataFunction = (offset: number, count: number): Promise<IGridDataRow[]> => {
-        //     return new Promise<IGridDataRow[]>((resolve) => {
-        //         let data: IGridDataRow[] = [];
-        //         for (let i = offset; i < offset + count; i++) {
-        //             let row: IGridDataRow = {
-        //                 values: []
-        //             };
-        //             for (let j = 0; j < numberOfColumns; j++) {
-        //                 row.values.push(`column ${j}; row ${i}`);
-        //             }
-        //             data.push(row);
-        //         }
-        //         resolve(data);
-        //     });
-        // };
-        // this.dataRows = new VirtualizedCollection<IGridDataRow>(50,
-        //                                                         numberOfRows,
-        //                                                         loadDataFunction,
-        //                                                         (index) => {
-        //                                                             return { values: []};
-        //                                                         });
-        this.columnDefinitions = columns;
+            getItemMetadata: undefined,
+
+            sortData: (sortCols): void => {
+                console.log('heroesModel.sortData() sortCols.length: ' + sortCols.length);
+                this.heroes.sort((dataObject1, dataObject2) => {
+                    for (let i = 0, l = sortCols.length; i < l; i++) {
+                        let field = sortCols[i].sortCol.field;
+                        let sign = sortCols[i].sortAsc ? 1 : -1;
+                        let value1 = dataObject1[field], value2 = dataObject2[field];
+                        let result = (value1 === value2 ? 0 : (value1 > value2 ? 1 : -1)) * sign;
+                        if (result !== 0) {
+                            return result;
+                        }
+                    }
+                    return 0;
+                });
+            }
+        };
     }
 }
 

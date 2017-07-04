@@ -1,27 +1,15 @@
-import { Observable } from 'rxjs/Rx';
-export declare enum NotificationType {
-    Error = 0,
-    UpdateAvailable = 1,
-    UpdateDownloaded = 2,
-}
 export interface ISelectionRange {
     startRow: number;
     endRow: number;
     startColumn: number;
     endColumn: number;
 }
-export declare class CancellationToken {
-    private _isCanceled;
-    private _canceled;
-    cancel(): void;
-    readonly isCanceled: boolean;
-    readonly canceled: Observable<any>;
-}
 export interface ISlickGridData {
     getLength(): number;
     getItem(index: number): any;
     getRange(start: number, end: number): any;
     getItemMetadata(index: number): any;
+    sortData(sortCols: any[]): void;
 }
 export interface ISlickGridColumn {
     name: string;

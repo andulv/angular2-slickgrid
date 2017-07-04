@@ -8,7 +8,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 __export(require("./components/js/gridsync.service"));
-__export(require("./components/js/interfaces"));
 __export(require("./components/js/selectionmodel"));
 __export(require("./components/js/slickgrid"));
 __export(require("./components/js/virtualizedcollection"));

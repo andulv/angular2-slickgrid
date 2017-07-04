@@ -18,96 +18,21 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@angular/core");
 const Rx_1 = require("rxjs/Rx");
-const gridsync_service_1 = require("./gridsync.service");
-////////// Text Editors ///////////////////////////////////////////////////////
-function getOverridableTextEditorClass(grid) {
-    class OverridableTextEditor {
-        constructor(_args) {
-            this._args = _args;
-            this._textEditor = new Slick.Editors.Text(_args);
-        }
-        destroy() {
-            this._textEditor.destroy();
-        }
-        ;
-        focus() {
-            this._textEditor.focus();
-        }
-        ;
-        getValue() {
-            return this._textEditor.getValue();
-        }
-        ;
-        setValue(val) {
-            this._textEditor.setValue(val);
-        }
-        ;
-        loadValue(item, rowNumber) {
-            if (grid.overrideCellFn) {
-                let overrideValue = grid.overrideCellFn(rowNumber, this._args.column.id, item[this._args.column.id]);
-                if (overrideValue !== undefined) {
-                    item[this._args.column.id] = overrideValue;
-                }
-            }
-            this._rowIndex = rowNumber;
-            this._textEditor.loadValue(item);
-        }
-        ;
-        serializeValue() {
-            return this._textEditor.serializeValue();
-        }
-        ;
-        applyValue(item, state) {
-            let currentRow = grid.dataModel.getItem(this._rowIndex);
-            let dataField = this._args.column.field;
-            // let colIndex = grid.getColumnIndex();
-            let dataLength = grid.dataModel.getLength();
-            // let colDef=grid.columnDefinitions[]
-            // If this is not the "new row" at the very bottom
-            if (this._rowIndex !== dataLength) {
-                currentRow[dataField] = state;
-                this._textEditor.applyValue(item, state);
-            }
-        }
-        ;
-        isValueChanged() {
-            return this._textEditor.isValueChanged();
-        }
-        ;
-        validate() {
-            let result = { valid: true, msg: undefined };
-            let colIndex = grid.getColumnIndex(this._args.column.name);
-            let newValue = this._textEditor.getValue();
-            // TODO: It would be nice if we could support the isCellEditValid as a promise 
-            if (grid.isCellEditValid && !grid.isCellEditValid(this._rowIndex, colIndex, newValue)) {
-                result.valid = false;
-            }
-            return result;
-        }
-        ;
-    }
-    return OverridableTextEditor;
-}
-////////// Implementation /////////////////////////////////////////////////////
+const selectionmodel_1 = require("./selectionmodel");
 let SlickGrid = class SlickGrid {
-    /* andresse: commented out 11/1/2016 due to minification issues
-    private _finishGridEditingFn: (e: any, args: any) => void;
-    */
     ////////// Constructor and Angular functions //////////////////////////////
-    constructor(_el, _gridSyncService) {
+    constructor(_el) {
         this._el = _el;
-        this._gridSyncService = _gridSyncService;
         this.highlightedCells = [];
         this.blurredColumns = [];
         this.contextColumns = [];
-        this.columnsLoading = [];
         this.showHeader = true;
-        this.showDataTypeIcon = true;
         this.enableColumnReorder = false;
         this.enableAsyncPostRender = false;
         this.selectionModel = '';
         this.plugins = [];
         this.enableEditing = false;
+        this.activeRowIndexChange = new core_1.EventEmitter();
         this.loadFinished = new core_1.EventEmitter();
         this.editingFinished = new core_1.EventEmitter();
         this.contextMenu = new core_1.EventEmitter();
@@ -118,66 +43,6 @@ let SlickGrid = class SlickGrid {
         this.rowEditExit = new core_1.EventEmitter();
         this._rowHeight = 29;
         this._topRow = 0;
-        this._leftPx = 0;
-        /* tslint:disable:member-ordering */
-        this.getColumnEditor = (column) => {
-            if (this.isColumnEditable && !this.isColumnEditable(this.getColumnIndex(column.name))) {
-                return undefined;
-            }
-            let columnId = column.id;
-            let isColumnLoading = this.columnsLoading && this.columnsLoading.indexOf(columnId) !== -1;
-            let canEditColumn = columnId !== undefined && !isColumnLoading;
-            if (canEditColumn) {
-                return getOverridableTextEditorClass(this);
-            }
-            return undefined;
-        };
-        this.getFormatter = (column) => {
-            if (column.isRowNumber === true) {
-                return undefined; // use default formatter for row number cell
-            }
-            return (row, cell, value, columnDef, dataContext) => {
-                let columnId = cell > 0 && this.columnDefinitions.length > cell - 1 ? this.columnDefinitions[cell - 1].id : undefined;
-                if (columnId) {
-                    // let columnType = this.columnDefinitions[cell - 1].type;
-                    let isHighlighted = this.highlightedCells && !!this.highlightedCells.find(c => c.row === row && c.column + 1 === cell);
-                    let isColumnLoading = this.columnsLoading && this.columnsLoading.indexOf(columnId) !== -1;
-                    let isShadowed = this.blurredColumns && !!this.blurredColumns.find(c => c === columnId);
-                    let isContext = this.contextColumns && !!this.contextColumns.find(c => c === columnId);
-                    let overrideValue = this.overrideCellFn && this.overrideCellFn(row, columnId, value, dataContext);
-                    let valueToDisplay = (value + '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                    let cellClasses = 'grid-cell-value-container';
-                    // if (columnType !== FieldType.String) {
-                    //     cellClasses += ' right-justified';
-                    // }
-                    /* tslint:disable:no-null-keyword */
-                    let valueMissing = value === undefined || value === null;
-                    /* tslint:disable:no-null-keyword */
-                    let isOverridden = overrideValue !== undefined && overrideValue !== null;
-                    if (valueMissing && !isOverridden) {
-                        cellClasses += ' missing-value';
-                    }
-                    if (isColumnLoading === true && !isOverridden) {
-                        cellClasses += ' loading-cell';
-                        valueToDisplay = '';
-                    }
-                    if (isOverridden) {
-                        cellClasses += ' override-cell';
-                        valueToDisplay = overrideValue;
-                    }
-                    if (isContext) {
-                        cellClasses += ' context';
-                    }
-                    if (isHighlighted === true) {
-                        cellClasses += ' highlighted';
-                    }
-                    if (isShadowed && !isHighlighted && !isOverridden) {
-                        cellClasses += ' blurred';
-                    }
-                    return '<span title="' + valueToDisplay + '" class="' + cellClasses + '">' + valueToDisplay + '</span>';
-                }
-            };
-        };
     }
     onFocus() {
         if (this._grid) {
@@ -191,18 +56,12 @@ let SlickGrid = class SlickGrid {
         let wasEditing = this._grid ? !!this._grid.getCellEditor() : false;
         if (columnDefinitionChanges
             && !_.isEqual(columnDefinitionChanges.previousValue, columnDefinitionChanges.currentValue)) {
-            this.updateSchema();
             if (!this._grid) {
                 this.initGrid();
             }
             else {
                 this._grid.resetActiveCell();
-                this._grid.setColumns(this._gridColumns);
-            }
-            if (this._gridSyncService) {
-                let gridColumnWidths = this._grid.getColumnWidths();
-                this._gridSyncService.rowNumberColumnWidthPX = gridColumnWidths[0];
-                this._gridSyncService.columnWidthPXs = gridColumnWidths.slice(1);
+                this._grid.setColumns(this.columnDefinitions);
             }
             hasGridStructureChanges = true;
             if (!columnDefinitionChanges.currentValue || columnDefinitionChanges.currentValue.length === 0) {
@@ -216,18 +75,12 @@ let SlickGrid = class SlickGrid {
                 activeCell.cell = newActiveColumnIndex !== -1 ? newActiveColumnIndex + 1 : 0;
             }
         }
-        if (changes['dataRows']
-            || (changes['highlightedCells'] && !_.isEqual(changes['highlightedCells'].currentValue, changes['highlightedCells'].previousValue))
-            || (changes['blurredColumns'] && !_.isEqual(changes['blurredColumns'].currentValue, changes['blurredColumns'].previousValue))
-            || (changes['columnsLoading'] && !_.isEqual(changes['columnsLoading'].currentValue, changes['columnsLoading'].previousValue))) {
+        if (changes['dataModel']) {
             this.setCallbackOnDataRowsChanged();
             this._grid.updateRowCount();
             this._grid.setColumns(this._grid.getColumns());
             this._grid.invalidateAllRows();
             this._grid.render();
-            if (this._gridSyncService) {
-                this._gridSyncService.rowNumberColumnWidthPX = this._grid.getColumnWidths()[0];
-            }
             hasGridStructureChanges = true;
         }
         if (hasGridStructureChanges) {
@@ -241,20 +94,6 @@ let SlickGrid = class SlickGrid {
         if (wasEditing && hasGridStructureChanges) {
             this._grid.editActiveCell();
         }
-        /* andresse: commented out 11/1/2016 due to minification issues
-        if (changes['editableColumnIds']) {
-            let newValue = changes['editableColumnIds'].currentValue;
-            if (!_.isEqual(newValue, changes['editableColumnIds'].previousValue)) {
-                this._grid.onKeyDown.unsubscribe(this.finishGridEditingFn);
-                if (newValue && newValue.length > 0) {
-                    this._grid.onKeyDown.subscribe(this.finishGridEditingFn);
-                    let firstEditableColumn = this._grid.getColumnIndex(newValue[0]) + 1;
-                    let rowToFocus = activeCell ? activeCell.row : this._grid.getViewport().top;
-                    this._grid.gotoCell(rowToFocus, firstEditableColumn, true);
-                }
-            }
-        }
-        */
     }
     ngOnInit() {
         // ngOnInit() will be called *after* the first time ngOnChanges() is called
@@ -284,9 +123,6 @@ let SlickGrid = class SlickGrid {
         if (this._resizeSubscription !== undefined) {
             this._resizeSubscription.unsubscribe();
         }
-        if (this._gridSyncSubscription !== undefined) {
-            this._gridSyncSubscription.unsubscribe();
-        }
     }
     ////////// Public functions  - Add public API functions here //////////////
     // Enables editing on the grid
@@ -310,12 +146,12 @@ let SlickGrid = class SlickGrid {
     getColumnIndex(name) {
         return this._columnNameToIndex[name];
     }
-    // Gets a ISlickRange corresponding to the current selection on the grid
-    getSelectedRanges() {
-        if (this._gridSyncService && this._gridSyncService.selectionModel) {
-            return this._gridSyncService.selectionModel.getSelectedRanges();
-        }
-    }
+    // // Gets a ISlickRange corresponding to the current selection on the grid
+    // public getSelectedRanges(): ISlickRange[] {
+    //     if (this._gridSyncService && this._gridSyncService.selectionModel) {
+    //         return this._gridSyncService.selectionModel.getSelectedRanges();
+    //     }
+    // }
     // Registers a Slick plugin with the given name
     registerPlugin(plugin) {
         if (Slick[plugin] && typeof Slick[plugin] === 'function') {
@@ -326,27 +162,27 @@ let SlickGrid = class SlickGrid {
                         Please extend the Slick with the plugin as a function before registering`);
         }
     }
-    // Set this grid to be the active grid
-    setActive() {
-        this._grid.setActiveCell(0, 1);
-        if (this._gridSyncService && this._gridSyncService.selectionModel) {
-            this._gridSyncService.selectionModel.setSelectedRanges([new Slick.Range(0, 0, 0, 0)]);
-        }
-    }
-    // Set the grid's selection
-    set selection(range) {
-        if (typeof range === 'boolean') {
-            if (range) {
-                this._gridSyncService.selectionModel.setSelectedRanges([new Slick.Range(0, 0, this._grid.getDataLength() - 1, this._grid.getColumns().length - 1)]);
-            }
-            else {
-                this._gridSyncService.selectionModel.clearSelection();
-            }
-        }
-        else {
-            this._gridSyncService.selectionModel.setSelectedRanges(range);
-        }
-    }
+    // // Set this grid to be the active grid
+    // public setActive(): void {
+    //     this._grid.setActiveCell(0, 1);
+    //     if (this._gridSyncService && this._gridSyncService.selectionModel) {
+    //         this._gridSyncService.selectionModel.setSelectedRanges([new Slick.Range(0, 0, 0, 0)]);
+    //     }
+    // }
+    // // Set the grid's selection
+    // public set selection(range: ISlickRange[] | boolean) {
+    //     if (typeof range === 'boolean') {
+    //         if (range) {
+    //             this._gridSyncService.selectionModel.setSelectedRanges(
+    //                 [new Slick.Range(0, 0, this._grid.getDataLength() - 1, this._grid.getColumns().length - 1)]
+    //             );
+    //         } else {
+    //             this._gridSyncService.selectionModel.clearSelection();
+    //         }
+    //     } else {
+    //         this._gridSyncService.selectionModel.setSelectedRanges(range);
+    //     }
+    // }
     // Add a context menu to SlickGrid
     subscribeToContextMenu() {
         const self = this;
@@ -361,50 +197,64 @@ let SlickGrid = class SlickGrid {
         let options = {
             enableCellNavigation: true,
             enableColumnReorder: this.enableColumnReorder,
+            forceFitColumns: true,
             renderRowWithRange: true,
-            showRowNumber: true,
-            showDataTypeIcon: this.showDataTypeIcon,
+            showRowNumber: false,
+            showDataTypeIcon: false,
             showHeader: this.showHeader,
             rowHeight: this._rowHeight,
             defaultColumnWidth: 120,
+            multiColumnSort: true,
             editable: this.enableEditing,
             autoEdit: this.enableEditing,
             enableAddRow: false,
-            enableAsyncPostRender: this.enableAsyncPostRender,
-            editorFactory: {
-                getEditor: this.getColumnEditor
-            },
-            formatterFactory: {
-                getFormatter: this.getFormatter
-            }
+            enableAsyncPostRender: this.enableAsyncPostRender
         };
-        this._grid = new Slick.Grid(this._el.nativeElement.getElementsByClassName('grid')[0], this.dataModel, this._gridColumns, options);
-        if (this._gridSyncService) {
-            if (this.selectionModel) {
-                if (Slick[this.selectionModel] && typeof Slick[this.selectionModel] === 'function') {
-                    this._gridSyncService.underlyingSelectionModel = new Slick[this.selectionModel]();
-                    this._grid.setSelectionModel(this._gridSyncService.selectionModel);
-                }
-                else {
-                    console.error(`Tried to register selection model ${this.selectionModel}, 
-                                   but none was found to be attached to Slick Grid or it was not a function.
-                                   Please extend the Slick with the selection model as a function before registering`);
-                }
+        this._grid = new Slick.Grid(this._el.nativeElement.getElementsByClassName('grid')[0], this.dataModel, this.columnDefinitions, options);
+        this._grid.onSort.subscribe((e, args) => {
+            this.dataModel.sortData(args.sortCols);
+            this._grid.invalidate();
+            this._grid.render();
+        });
+        if (this.selectionModel) {
+            if (Slick[this.selectionModel] && typeof Slick[this.selectionModel] === 'function') {
+                let innerModel = new Slick[this.selectionModel]();
+                let outerModel = new selectionmodel_1.SelectionModel(innerModel, new Slick.EventHandler(), new Slick.Event(), (fromRow, fromCell, toRow, toCell) => new Slick.Range(fromRow, fromCell, toRow, toCell));
+                console.log('Setting selectionModel...' + outerModel);
+                this._grid.setSelectionModel(outerModel);
             }
-            this._gridSyncService.scrollBarWidthPX = this._grid.getScrollbarDimensions().width;
-            this._gridSyncSubscription = this._gridSyncService.updated
-                .filter(p => p === 'columnWidthPXs')
-                .debounceTime(10)
-                .subscribe(p => {
-                this.updateColumnWidths();
-            });
+            else {
+                console.error(`Tried to register selection model ${this.selectionModel}, 
+                                but none was found to be attached to Slick Grid or it was not a function.
+                                Please extend the Slick with the selection model as a function before registering`);
+            }
         }
+        // if (this._gridSyncService) {
+        //     console.log('initGrid() _gridSyncService is defined.');
+        //     if (this.selectionModel) {
+        //         console.log('Setting selectionModel...' + this.selectionModel);
+        //         if (Slick[this.selectionModel] && typeof Slick[this.selectionModel] === 'function') {
+        //             this._gridSyncService.underlyingSelectionModel = new Slick[this.selectionModel]();
+        //         } else {
+        //             console.error(`Tried to register selection model ${this.selectionModel}, 
+        //                            but none was found to be attached to Slick Grid or it was not a function.
+        //                            Please extend the Slick with the selection model as a function before registering`);
+        //         }
+        //     }
+        //     this._gridSyncService.scrollBarWidthPX = this._grid.getScrollbarDimensions().width;
+        //     this._gridSyncSubscription = this._gridSyncService.updated
+        //         .filter(p => p === 'columnWidthPXs')
+        //         .debounceTime(10)
+        //         .subscribe(p => {
+        //             this.updateColumnWidths();
+        //         });
+        // }
         for (let plugin of this.plugins) {
             this.registerPlugin(plugin);
         }
         this._columnNameToIndex = {};
-        for (let i = 0; i < this._gridColumns.length; i++) {
-            this._columnNameToIndex[this._gridColumns[i].name] = i;
+        for (let i = 0; i < this.columnDefinitions.length; i++) {
+            this._columnNameToIndex[this.columnDefinitions[i].name] = i;
         }
         this.onResize();
     }
@@ -455,10 +305,6 @@ let SlickGrid = class SlickGrid {
                 this._topRow = scrollRow;
                 this.topRowNumberChange.emit(scrollRow);
             }
-            if (this._gridSyncService && args.scrollLeft !== this._leftPx) {
-                this._leftPx = args.scrollLeft;
-                this._gridSyncService.scrollLeftPX = this._leftPx;
-            }
         });
     }
     subscribeToCellChanged() {
@@ -484,6 +330,7 @@ let SlickGrid = class SlickGrid {
     subscribeToActiveCellChanged() {
         // Subscribe to all active cell changes to be able to catch when we tab to the header on the next row
         this._grid.onActiveCellChanged.subscribe((e, args) => {
+            this.activeRowIndexChange.emit(args.row);
             // If editing is disabled or this isn't the header, ignore. 
             // We assume the header is always column 0, as it is hardcoded to be that way in initGrid
             if (!this.enableEditing || args.cell !== 0) {
@@ -500,39 +347,12 @@ let SlickGrid = class SlickGrid {
             }
         });
     }
-    updateColumnWidths() {
-        for (let i = 0; i < this._gridColumns.length; i++) {
-            this._gridColumns[i].width = this._gridSyncService.columnWidthPXs[i];
-        }
-        this._grid.setColumnWidths(this._gridColumns, true);
-    }
-    updateSchema() {
-        if (!this.columnDefinitions) {
-            return;
-        }
-        this._gridColumns = this.columnDefinitions;
-        // this._gridColumns = this.columnDefinitions.map((c, i) => {
-        //     let column: ISlickGridColumn = {
-        //         name: c.name,
-        //         field: c.id,
-        //         id: c.id ? c.id : c.name,
-        //         icon: this.getImagePathForDataType(c.type),
-        //         resizable: true
-        //     };
-        //     if (c.asyncPostRender) {
-        //         column.asyncPostRender = c.asyncPostRender;
-        //     }
-        //     if (c.formatter) {
-        //         column.formatter = c.formatter;
-        //     }
-        //     if (this._gridSyncService) {
-        //         let columnWidth = this._gridSyncService.columnWidthPXs[i];
-        //         column.width = columnWidth ? columnWidth : undefined;
-        //         column.minWidth = this._gridSyncService.columnMinWidthPX;
-        //     }
-        //     return column;
-        // });
-    }
+    // private updateColumnWidths(): void {
+    //     for (let i = 0; i < this.columnDefinitions.length; i++) {
+    //         this.columnDefinitions[i].width = this._gridSyncService.columnWidthPXs[i];
+    //     }
+    //     this._grid.setColumnWidths(this.columnDefinitions, true);
+    // }
     setCallbackOnDataRowsChanged() {
         // if (this.dataRows) {
         //     // We must wait until we get the first set of dataRows before we enable editing or slickgrid will complain
@@ -586,16 +406,8 @@ __decorate([
 ], SlickGrid.prototype, "contextColumns", void 0);
 __decorate([
     core_1.Input(),
-    __metadata("design:type", Array)
-], SlickGrid.prototype, "columnsLoading", void 0);
-__decorate([
-    core_1.Input(),
     __metadata("design:type", Boolean)
 ], SlickGrid.prototype, "showHeader", void 0);
-__decorate([
-    core_1.Input(),
-    __metadata("design:type", Boolean)
-], SlickGrid.prototype, "showDataTypeIcon", void 0);
 __decorate([
     core_1.Input(),
     __metadata("design:type", Boolean)
@@ -620,6 +432,10 @@ __decorate([
     core_1.Input(),
     __metadata("design:type", Number)
 ], SlickGrid.prototype, "topRowNumber", void 0);
+__decorate([
+    core_1.Output(),
+    __metadata("design:type", core_1.EventEmitter)
+], SlickGrid.prototype, "activeRowIndexChange", void 0);
 __decorate([
     core_1.Input(),
     __metadata("design:type", Function)
@@ -673,12 +489,10 @@ __decorate([
 SlickGrid = __decorate([
     core_1.Component({
         selector: 'slick-grid',
-        template: '<div class="grid" (window:resize)="onResize()"></div>',
-        providers: [gridsync_service_1.GridSyncService],
+        template: '<div class="grid" style="width:700px;height:500px" (window:resize)="onResize()"></div>',
         encapsulation: core_1.ViewEncapsulation.None
     }),
     __param(0, core_1.Inject(core_1.forwardRef(() => core_1.ElementRef))),
-    __param(1, core_1.Optional()), __param(1, core_1.Inject(core_1.forwardRef(() => gridsync_service_1.GridSyncService))),
-    __metadata("design:paramtypes", [Object, Object])
+    __metadata("design:paramtypes", [Object])
 ], SlickGrid);
 exports.SlickGrid = SlickGrid;

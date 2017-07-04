@@ -1,10 +1,9 @@
 import { OnChanges, OnInit, OnDestroy, SimpleChange, EventEmitter, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Rx';
 import { ISlickGridColumn, ISlickGridData } from './interfaces';
-import { ISlickRange, ISlickEvent } from './selectionmodel';
+import { ISlickEvent } from './selectionmodel';
 export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterViewInit {
     private _el;
-    private _gridSyncService;
     columnDefinitions: ISlickGridColumn[];
     dataModel: ISlickGridData;
     resized: Observable<any>;
@@ -14,15 +13,14 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     }[];
     blurredColumns: string[];
     contextColumns: string[];
-    columnsLoading: string[];
     showHeader: boolean;
-    showDataTypeIcon: boolean;
     enableColumnReorder: boolean;
     enableAsyncPostRender: boolean;
     selectionModel: string;
     plugins: string[];
     enableEditing: boolean;
     topRowNumber: number;
+    activeRowIndexChange: EventEmitter<number>;
     overrideCellFn: (rowNumber, columnId, value?, data?) => string;
     isColumnEditable: (column: number) => boolean;
     isCellEditValid: (row: number, column: number, newValue: any) => boolean;
@@ -47,16 +45,13 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     }>;
     onFocus(): void;
     private _grid;
-    private _gridColumns;
     private _columnNameToIndex;
     private _rowHeight;
     private _resizeSubscription;
-    private _gridSyncSubscription;
     private _topRow;
-    private _leftPx;
     private _activeEditingRow;
     private _activeEditingRowHasChanges;
-    constructor(_el: any, _gridSyncService: any);
+    constructor(_el: any);
     ngOnChanges(changes: {
         [propName: string]: SimpleChange;
     }): void;
@@ -68,24 +63,17 @@ export declare class SlickGrid implements OnChanges, OnInit, OnDestroy, AfterVie
     readonly onSelectedRowsChanged: ISlickEvent;
     getSelectedRows(): number[];
     getColumnIndex(name: string): number;
-    getSelectedRanges(): ISlickRange[];
     registerPlugin(plugin: string): void;
-    setActive(): void;
-    selection: ISlickRange[] | boolean;
     subscribeToContextMenu(): void;
     private initGrid();
     private changeEditSession(enabled);
     private handleEditorCellChange(rowNumber);
     private onResize();
     private invalidateRange(start, end);
-    private getColumnEditor;
-    private getFormatter;
     private subscribeToScroll();
     private subscribeToCellChanged();
     private subscribeToBeforeEditCell();
     private subscribeToActiveCellChanged();
-    private updateColumnWidths();
-    private updateSchema();
     private setCallbackOnDataRowsChanged();
     private renderGridDataRowsRange(startIndex, count);
 }
